@@ -1,0 +1,42 @@
+version: "3"
+
+services:
+  app:
+    build: ./flask_app/
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "flask_app"
+      STATSD_HOST: "statsd-exporter"
+      STATSD_PORT: "9125"
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.22.4
+    ports:
+      - "9125:9125"
+      - "9102:9102"
+    volumes:
+      - ./etc/statsd-exporter/statsd.conf:/statsd/statsd.conf
+    command:
+      - --statsd.mapping-config=/statsd/statsd.conf
+  prometheus:
+    image: prom/prometheus:v2.33.5
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./etc/prometheus:/workspace
+    command:
+      - '--config.file=/workspace/prometheus.yml'
+  grafana:
+    image: grafana/grafana:8.4.3
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./etc/grafana/:/etc/grafana/provisioning/datasources
+      - ./etc/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./etc/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
